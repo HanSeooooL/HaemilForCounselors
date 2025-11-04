@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// replace AsyncStorage with secure storage wrapper
+import { STORAGE as SecureStorage } from '../storage/secureStorage';
 import { login, register, type RegisterPayload } from '../api';
 
 type AuthContextValue = {
@@ -20,7 +21,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         (async () => {
             try {
-                const saved = await AsyncStorage.getItem(STORAGE_KEY);
+                // Load from secure storage (will migrate from legacy AsyncStorage if needed)
+                const saved = await SecureStorage.getToken();
                 if (saved) setToken(saved);
             } finally {
                 setIsLoading(false);
@@ -31,18 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signIn = async (id: string, password: string) => {
         const t = await login(id, password);
         setToken(t);
-        await AsyncStorage.setItem(STORAGE_KEY, t);
+        await SecureStorage.setToken(t);
     };
 
     const signUp = async (payload: RegisterPayload) => {
         const t = await register(payload);
         setToken(t);
-        await AsyncStorage.setItem(STORAGE_KEY, t);
+        await SecureStorage.setToken(t);
     };
 
     const signOut = async () => {
         setToken(null);
-        await AsyncStorage.removeItem(STORAGE_KEY);
+        await SecureStorage.removeToken();
     };
 
     const value = useMemo(() => ({ token, isLoading, signIn, signUp, signOut }), [token, isLoading]);

@@ -1,4 +1,7 @@
-const API_BASE = 'http://127.0.0.1:5000';
+import { Platform } from 'react-native';
+
+const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+const API_BASE = `http://${HOST}:5000`;
 
 type AuthResponse = { token?: string; jwt?: string; id?: string; email?: string };
 
@@ -76,6 +79,230 @@ export async function register(payload: RegisterPayload): Promise<string> {
         return token;
     } catch (e: any) {
         console.error('[register] request failed', { name: e?.name, message: e?.message, url });
+        throw e;
+    }
+}
+
+// --- Profile API ---
+export type UserProfile = {
+    id: string;
+    email: string;
+    age?: number;
+    gender?: Gender;
+    height?: number; // cm
+    weight?: number; // kg
+};
+
+export async function getProfile(token: string): Promise<UserProfile> {
+    const url = `${API_BASE}/user/me`;
+    try {
+        const res = await fetch(url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const statusText = res.statusText;
+            const text = await res.text().catch(() => '');
+            let serverMsg: string | undefined;
+            try {
+                const json = JSON.parse(text);
+                serverMsg = json?.message ?? json?.error;
+            } catch {
+                serverMsg = text;
+            }
+            console.error('[getProfile] HTTP error', { status, statusText, message: serverMsg, url });
+            throw new Error(serverMsg ? `프로필 조회 실패: ${serverMsg} (HTTP ${status})` : `프로필 조회 실패 (HTTP ${status})`);
+        }
+        const data = (await res.json()) as Partial<UserProfile> & { user?: Partial<UserProfile> };
+        // accept either flat or nested user
+        const flat: Partial<UserProfile> = { ...(data.user ?? {}), ...data };
+        if (!flat.id || !flat.email) {
+            throw new Error('invalid profile payload');
+        }
+        return {
+            id: String(flat.id),
+            email: String(flat.email),
+            age: flat.age ?? undefined,
+            gender: flat.gender as Gender | undefined,
+            height: flat.height ?? undefined,
+            weight: flat.weight ?? undefined,
+        };
+    } catch (e) {
+        // do not fallback to JWT decode in RN to avoid env issues
+        throw e;
+    }
+}
+
+export type UpdateProfilePayload = {
+    age?: number | null;
+    gender?: Gender | null;
+    height?: number | null; // cm
+    weight?: number | null; // kg
+};
+
+export async function updateProfile(token: string, patch: UpdateProfilePayload): Promise<UserProfile> {
+    const url = `${API_BASE}/user/me`;
+    try {
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(patch),
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const statusText = res.statusText;
+            const text = await res.text().catch(() => '');
+            let serverMsg: string | undefined;
+            try {
+                const json = JSON.parse(text);
+                serverMsg = json?.message ?? json?.error;
+            } catch {
+                serverMsg = text;
+            }
+            console.error('[updateProfile] HTTP error', { status, statusText, message: serverMsg, url });
+            throw new Error(serverMsg ? `프로필 수정 실패: ${serverMsg} (HTTP ${status})` : `프로필 수정 실패 (HTTP ${status})`);
+        }
+        const data = (await res.json()) as Partial<UserProfile>;
+        // server returns updated profile
+        return {
+            id: String(data.id ?? ''),
+            email: String(data.email ?? ''),
+            age: data.age ?? undefined,
+            gender: data.gender as Gender | undefined,
+            height: data.height ?? undefined,
+            weight: data.weight ?? undefined,
+        };
+    } catch (e) {
+        console.error('[updateProfile] request failed', e);
+        throw e;
+    }
+}
+
+export async function deleteAccount(token: string): Promise<void> {
+    const url = `${API_BASE}/user/me`;
+    try {
+        const res = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const statusText = res.statusText;
+            const text = await res.text().catch(() => '');
+            let serverMsg: string | undefined;
+            try {
+                const json = JSON.parse(text);
+                serverMsg = json?.message ?? json?.error;
+            } catch {
+                serverMsg = text;
+            }
+            console.error('[deleteAccount] HTTP error', { status, statusText, message: serverMsg, url });
+            throw new Error(serverMsg ? `회원탈퇴 실패: ${serverMsg} (HTTP ${status})` : `회원탈퇴 실패 (HTTP ${status})`);
+        }
+    } catch (e) {
+        console.error('[deleteAccount] request failed', e);
+        throw e;
+    }
+}
+
+export type ChangePasswordPayload = {
+    currentPassword: string;
+    newPassword: string;
+};
+
+export async function changePassword(token: string, payload: ChangePasswordPayload): Promise<void> {
+    const url = `${API_BASE}/user/me/password`;
+    try {
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const statusText = res.statusText;
+            const text = await res.text().catch(() => '');
+            let serverMsg: string | undefined;
+            try {
+                const json = JSON.parse(text);
+                serverMsg = json?.message ?? json?.error;
+            } catch {
+                serverMsg = text;
+            }
+            console.error('[changePassword] HTTP error', { status, statusText, message: serverMsg, url });
+            throw new Error(serverMsg ? `비밀번호 변경 실패: ${serverMsg} (HTTP ${status})` : `비밀번호 변경 실패 (HTTP ${status})`);
+        }
+        // 204 No Content or 200 OK with message; we don't need to parse body
+        return;
+    } catch (e) {
+        console.error('[changePassword] request failed', e);
+        throw e;
+    }
+}
+
+// --- Chat API ---
+export type RawChatResponse = {
+    jwt?: string;
+    token?: string;
+    message?: string;
+    generatedMessage?: string;
+    createdAt?: number | string;
+    created_time?: number | string;
+    timestamp?: number | string;
+};
+
+export type ChatResponse = { jwt: string; message: string; createdAt: number };
+
+function parseCreatedAt(v: unknown): number | null {
+    if (v == null) return null;
+    if (typeof v === 'number') {
+        // if seconds, convert to ms when it looks like a 10-digit epoch
+        if (v < 2e12) return Math.round(v * 1000);
+        return v;
+    }
+    if (typeof v === 'string') {
+        // try numeric first
+        const n = Number(v);
+        if (!Number.isNaN(n)) return n < 2e12 ? Math.round(n * 1000) : n;
+        const t = Date.parse(v);
+        if (!Number.isNaN(t)) return t; // already ms epoch
+    }
+    return null;
+}
+
+export async function postChatResponse(jwt: string, message: string): Promise<ChatResponse> {
+    const url = `${API_BASE}/chat/response`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jwt, message }),
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const statusText = res.statusText;
+            const text = await res.text().catch(() => '');
+            let serverMsg: string | undefined;
+            try {
+                const json = JSON.parse(text);
+                serverMsg = (json?.message as string | undefined) ?? (json?.error as string | undefined);
+            } catch {
+                serverMsg = text;
+            }
+            console.error('[chat] HTTP error', { status, statusText, message: serverMsg, url });
+            throw new Error(serverMsg ? `채팅 전송 실패: ${serverMsg} (HTTP ${status})` : `채팅 전송 실패 (HTTP ${status})`);
+        }
+        const data = (await res.json()) as RawChatResponse;
+        const resJwt = data.jwt || data.token;
+        const resMsg = data.message ?? data.generatedMessage;
+        const created = parseCreatedAt(data.createdAt ?? data.created_time ?? data.timestamp);
+        if (!resJwt) throw new Error('응답에 JWT 없음');
+        if (!resMsg) throw new Error('응답에 메시지 없음');
+        if (created == null) throw new Error('응답에 생성 시각 없음');
+        return { jwt: resJwt, message: resMsg, createdAt: created };
+    } catch (e: any) {
+        console.error('[chat] request failed', { name: e?.name, message: e?.message, url });
         throw e;
     }
 }

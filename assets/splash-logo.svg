@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Transparent background; bootsplash will provide solid background color -->
+  <!-- Leaf/Chat bubble outer shape -->
+  <defs>
+    <clipPath id="rounded">
+      <rect x="112" y="112" width="800" height="800" rx="140" ry="140" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#rounded)">
+    <!-- Outer stroke-like border -->
+    <path d="M192 160h640c44 0 80 36 80 80v544c0 44-36 80-80 80H424c-24 0-47.3 8.7-65.4 24.6L248 976l41.2-126.9c5.8-17.9-7.4-36.1-26.3-36.1H192c-44 0-80-36-80-80V240c0-44 36-80 80-80Z" fill="#2C7A4B"/>
+    <!-- Inner panel (slightly lighter) -->
+    <path d="M224 208h576c35.3 0 64 28.7 64 64v416c0 35.3-28.7 64-64 64H472c-28.3 0-55.6 10.1-76.9 28.6L320 904l26.1-80.3c4.7-14.5-6-29.3-21.3-29.3H224c-35.3 0-64-28.7-64-64V272c0-35.3 28.7-64 64-64Z" fill="#3FA15F"/>
+
+    <!-- Hill/leaf lower curve -->
+    <path d="M160 640c80-112 208-176 384-176s304 64 384 176v96H160v-96Z" fill="#63C47C"/>
+
+    <!-- Sun -->
+    <circle cx="512" cy="520" r="80" fill="#F6DE78"/>
+    <!-- Rays -->
+    <g stroke="#F6DE78" stroke-width="24" stroke-linecap="round">
+      <path d="M512 392v-64"/>
+      <path d="M512 712v-64"/>
+      <path d="M402 430l-45-45"/>
+      <path d="M667 595l45 45"/>
+      <path d="M622 430l45-45"/>
+      <path d="M357 595l-45 45"/>
+      <path d="M376 520h-64"/>
+      <path d="M712 520h64"/>
+    </g>
+  </g>
+</svg>
+
