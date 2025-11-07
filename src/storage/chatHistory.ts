@@ -10,9 +10,19 @@ export type StoredChatMessage = {
 
 const KEY_PREFIX = 'chat_history_';
 
-function keyFor(token?: string | null) {
-  const suffix = token ? (token.slice(0, 24).replace(/[^a-zA-Z0-9]/g, '') || 'u') : 'default';
-  return `${KEY_PREFIX}${suffix}`;
+/**
+ * Generate a storage key using optional token and optional username.
+ * - If username is provided, it is normalized and included to separate users.
+ * - If token is provided, a stable short fingerprint of the token is included.
+ * - Falls back to 'default' when neither provided.
+ */
+function keyFor(token?: string | null, username?: string | null) {
+  const uname = typeof username === 'string' && username.trim() ? username.trim().toLowerCase().replace(/[^a-z0-9@._-]/g, '') : null;
+  const tokenSuffix = token ? (token.slice(0, 24).replace(/[^a-zA-Z0-9]/g, '') || 't') : null;
+  if (uname && tokenSuffix) return `${KEY_PREFIX}${uname}_${tokenSuffix}`;
+  if (uname) return `${KEY_PREFIX}${uname}`;
+  if (tokenSuffix) return `${KEY_PREFIX}${tokenSuffix}`;
+  return `${KEY_PREFIX}default`;
 }
 
 function isValidMessage(m: any): m is StoredChatMessage {
@@ -25,8 +35,10 @@ function isValidMessage(m: any): m is StoredChatMessage {
   );
 }
 
-export async function loadChatHistory(token?: string | null): Promise<StoredChatMessage[] | null> {
-  const key = keyFor(token);
+// Note: 기존 호출과의 호환성을 위해 token은 여전히 첫번째 인자로 남기고,
+// 두번째 인자 username은 선택적입니다 (ex: loadChatHistory(token, username)).
+export async function loadChatHistory(token?: string | null, username?: string | null): Promise<StoredChatMessage[] | null> {
+  const key = keyFor(token, username);
   try {
     const raw = await AsyncStorage.getItem(key);
     if (!raw) return null;
@@ -39,8 +51,8 @@ export async function loadChatHistory(token?: string | null): Promise<StoredChat
   }
 }
 
-export async function saveChatHistory(token: string | null | undefined, messages: StoredChatMessage[]): Promise<void> {
-  const key = keyFor(token);
+export async function saveChatHistory(token: string | null | undefined, messages: StoredChatMessage[], username?: string | null): Promise<void> {
+  const key = keyFor(token, username);
   try {
     await AsyncStorage.setItem(key, JSON.stringify(messages));
   } catch {
@@ -48,12 +60,11 @@ export async function saveChatHistory(token: string | null | undefined, messages
   }
 }
 
-export async function clearChatHistory(token?: string | null): Promise<void> {
-  const key = keyFor(token);
+export async function clearChatHistory(token?: string | null, username?: string | null): Promise<void> {
+  const key = keyFor(token, username);
   try {
     await AsyncStorage.removeItem(key);
   } catch {
     // ignore
   }
 }
-

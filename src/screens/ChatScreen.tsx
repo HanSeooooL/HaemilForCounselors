@@ -10,10 +10,11 @@ import {
     KeyboardAvoidingView,
     Platform,
     Alert,
+    TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
-import { postChatResponse } from '../api';
+import { postChatResponse, getProfile, type UserProfile } from '../api';
 import { saveChatHistory, loadChatHistory, type StoredChatMessage, clearChatHistory } from '../storage/chatHistory';
 
 export type ChatMessage = {
@@ -105,13 +106,35 @@ export default function ChatScreen() {
         { id: 'welcome', text: '안녕하세요! 상담 채팅을 시작해보세요.', sender: 'bot', createdAt: Date.now() },
     ]);
     const [sending, setSending] = useState(false);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [mode, setMode] = useState<'bot' | 'counselor'>('bot');
 
     const listRef = useRef<FlatList<ChatListItem>>(null);
 
-    // 최초 진입 시 저장된 채팅 불러오기
+    // 프로필 불러오기 (id/email -> 로컬 저장 키에 사용)
+    useEffect(() => {
+        if (!token) {
+            setProfile(null);
+            return;
+        }
+        let mounted = true;
+        (async () => {
+            try {
+                const p = await getProfile(token);
+                if (mounted) setProfile(p);
+            } catch (e) {
+                console.warn('[ChatScreen] getProfile failed', e);
+                if (mounted) setProfile(null);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [token]);
+
+    // 최초 진입 시 저장된 채팅 불러오기 (모드와 프로필을 포함한 키 사용)
     useEffect(() => {
         (async () => {
-            const saved = await loadChatHistory(token);
+            const userKey = profile?.id ? `${profile.id}_${mode}` : undefined;
+            const saved = await loadChatHistory(token, userKey);
             if (saved && saved.length) {
                 const restored: ChatMessage[] = saved
                     .filter((m): m is StoredChatMessage => !!m)
@@ -119,14 +142,22 @@ export default function ChatScreen() {
                     .map(m => ({ ...m }));
                 setMessages(restored);
                 requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+                return;
+            }
+            // 저장된 게 없으면 채팅 모드에 맞는 기본 메시지 초기화
+            if (mode === 'bot') {
+                setMessages([{ id: 'welcome', text: '안녕하세요! 상담 채팅을 시작해보세요.', sender: 'bot', createdAt: Date.now() }]);
+            } else {
+                setMessages([{ id: 'welcome-counselor', text: '상담사와 대화하려면 메시지를 입력하세요. (서버 미연결)', sender: 'system', createdAt: Date.now() }]);
             }
         })();
-    }, [token]);
+    }, [token, profile?.id, mode]);
 
-    // 메시지 변경될 때마다 저장 (초기 로드 후에도 반영)
+    // 메시지 변경될 때마다 저장 (모드와 프로필을 포함한 키 사용)
     useEffect(() => {
-        saveChatHistory(token, messages);
-    }, [token, messages]);
+        const userKey = profile?.id ? `${profile.id}_${mode}` : undefined;
+        saveChatHistory(token, messages, userKey);
+    }, [token, messages, profile?.id, mode]);
 
     const sorted = useMemo(() => [...messages].sort((a, b) => a.createdAt - b.createdAt), [messages]);
 
@@ -160,6 +191,16 @@ export default function ChatScreen() {
             return;
         }
 
+        if (mode === 'counselor') {
+            // 서버 연결 미구현: 로컬에 저장하고 안내 시스템 메시지만 추가
+            setMessages(prev => [
+                ...prev,
+                { id: `${Date.now()}-sys`, text: '메시지가 상담사에게 전달되었습니다. (서버 미구현)', sender: 'system', createdAt: Date.now() },
+            ]);
+            requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+            return;
+        }
+
         if (sending) return; // 중복 전송 방지
         setSending(true);
         try {
@@ -188,7 +229,7 @@ export default function ChatScreen() {
         } finally {
             setSending(false);
         }
-    }, [input, token, sending, signOut]);
+    }, [input, token, sending, signOut, mode]);
 
     const onSubmitEditing = useCallback(() => {
         send();
@@ -202,7 +243,14 @@ export default function ChatScreen() {
         >
             <View style={[styles.header, { paddingTop: insets.top + 8, paddingBottom: 8 }]}>
                 <Text style={styles.headerTitle}>채팅</Text>
-                {/* 로그아웃 버튼 제거 */}
+                <View style={styles.headerRight}>
+                    <TouchableOpacity style={[styles.modeButton, mode === 'bot' && styles.modeButtonActive]} onPress={() => setMode('bot')}>
+                        <Text style={[styles.modeText, mode === 'bot' && styles.modeTextActive]}>챗봇</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.modeButton, mode === 'counselor' && styles.modeButtonActive]} onPress={() => setMode('counselor')}>
+                        <Text style={[styles.modeText, mode === 'counselor' && styles.modeTextActive]}>상담사</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <FlatList
@@ -248,6 +296,18 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     headerTitle: { fontSize: 20, fontWeight: '600' },
+    headerRight: { flexDirection: 'row', alignItems: 'center' },
+
+    modeButton: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        marginLeft: 6,
+        backgroundColor: 'transparent',
+    },
+    modeButtonActive: { backgroundColor: '#007AFF' },
+    modeText: { color: '#007AFF', fontWeight: '500' },
+    modeTextActive: { color: 'white' },
 
     bubbleRow: { flexDirection: 'column', marginVertical: 4, maxWidth: '80%' },
     bubbleRowMine: { alignSelf: 'flex-end', alignItems: 'flex-end' },

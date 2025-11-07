@@ -7,7 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
 import { NavigationContainer } from '@react-navigation/native';
-import AppTabs from './src/navigation/AppTabs';
+import AppStack from './src/navigation/AppStack';
 import RNBootSplash from 'react-native-bootsplash';
 
 function Root() {
@@ -27,7 +27,7 @@ function Root() {
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
             {token ? (
                 <NavigationContainer>
-                    <AppTabs />
+                    <AppStack />
                 </NavigationContainer>
             ) : (
                 <AuthScreen />
