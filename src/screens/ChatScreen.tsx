@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
-import { postChatResponse, getProfile, type UserProfile } from '../api';
+import { getProfile, type UserProfile } from '../api';
+import { connectChatSocket, disconnectChatSocket, addOnChatMessageListener, sendMessage, sendMessageAsync } from '../ws/chatSocket';
 import { saveChatHistory, loadChatHistory, type StoredChatMessage, clearChatHistory } from '../storage/chatHistory';
 
 export type ChatMessage = {
@@ -22,6 +23,7 @@ export type ChatMessage = {
     text: string;
     sender: 'me' | 'bot' | 'system';
     createdAt: number;
+    status?: 'sending' | 'sent' | 'failed';
 };
 
 // 날짜 구분선과 메시지를 함께 다루는 리스트 아이템 타입
@@ -81,6 +83,8 @@ function MessageBubble({ item }: { item: ChatMessage }) {
             </View>
             <View style={[styles.timeRow, isMine ? styles.timeRowMine : styles.timeRowOther]}>
                 <Text style={styles.timeText}>{time}</Text>
+                {isMine && item.status === 'sending' ? <Text style={styles.smallStatus}>전달중…</Text> : null}
+                {isMine && item.status === 'failed' ? <Text style={styles.smallStatusErr}>전송 실패</Text> : null}
             </View>
         </View>
     );
@@ -129,6 +133,35 @@ export default function ChatScreen() {
         })();
         return () => { mounted = false; };
     }, [token]);
+
+    // WebSocket 연결: bot 모드에서만 연결 유지
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!token || mode !== 'bot') return;
+            try {
+                await connectChatSocket(token);
+            } catch (e) {
+                console.warn('[ChatScreen] connectChatSocket failed', e);
+                if (mounted) {
+                    // 연결 실패 시 사용자에게 알림을 표시하지 않고 로컬 동작을 계속함
+                }
+            }
+        })();
+        return () => { mounted = false; };
+    }, [token, mode]);
+
+    // 수신 리스너 등록 (서버에서 푸시 형태로 올 때 처리)
+    useEffect(() => {
+        if (!token || mode !== 'bot') return;
+        const unsub = addOnChatMessageListener((res) => {
+            // 봇(서버) 메시지 추가 (서버 응답 스펙: { cid, message, createdAt })
+            const botMsg: ChatMessage = { id: `${res.createdAt}-bot`, text: res.message, sender: 'bot', createdAt: res.createdAt };
+            setMessages(prev => [...prev, botMsg]);
+            requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+        });
+        return () => { unsub(); };
+    }, [token, mode, signOut]);
 
     // 최초 진입 시 저장된 채팅 불러오기 (모드와 프로필을 포함한 키 사용)
     useEffect(() => {
@@ -181,7 +214,9 @@ export default function ChatScreen() {
         const text = input.trim();
         if (!text) return;
         const now = Date.now();
-        const myMsg: ChatMessage = { id: `${now}`, text, sender: 'me', createdAt: now };
+        // generate a client-side cid for fire-and-forget message tracking
+        const cid = `${now}-${Math.random().toString(36).slice(2,9)}`;
+        const myMsg: ChatMessage = { id: cid, text, sender: 'me', createdAt: now, status: 'sending' };
         setMessages(prev => [...prev, myMsg]);
         setInput('');
         requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -204,22 +239,13 @@ export default function ChatScreen() {
         if (sending) return; // 중복 전송 방지
         setSending(true);
         try {
-            const res = await postChatResponse(token, text);
-            if (res.jwt !== token) {
-                Alert.alert('세션 확인 실패', '서버에서 반환한 토큰이 일치하지 않습니다. 다시 로그인해주세요.');
-                try { await clearChatHistory(token); } catch {}
-                try { await signOut(); } catch {}
-                return;
-            }
-            const botMsg: ChatMessage = {
-                id: `${res.createdAt}-bot`,
-                text: res.message,
-                sender: 'bot',
-                createdAt: res.createdAt,
-            };
-            setMessages(prev => [...prev, botMsg]);
-            requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+            // use fire-and-forget API so UI can show '전달중' immediately
+            await sendMessageAsync(text, cid);
+            // mark message as sent (no server response yet)
+            setMessages(prev => prev.map(m => m.id === cid ? { ...m, status: 'sent' } : m));
         } catch (e: any) {
+            // mark message as failed
+            setMessages(prev => prev.map(m => m.id === cid ? { ...m, status: 'failed' } : m));
             const msg = e?.message ?? '메시지 전송 중 오류가 발생했습니다';
             setMessages(prev => [
                 ...prev,
@@ -230,6 +256,13 @@ export default function ChatScreen() {
             setSending(false);
         }
     }, [input, token, sending, signOut, mode]);
+
+    // 컴포넌트 언마운트 또는 토큰/모드 변경 시 소켓 정리
+    useEffect(() => {
+        return () => {
+            try { disconnectChatSocket(); } catch {}
+        };
+    }, []);
 
     const onSubmitEditing = useCallback(() => {
         send();
@@ -354,5 +387,16 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         paddingHorizontal: 12,
         paddingVertical: Platform.select({ ios: 10, android: 8 }),
+    },
+
+    smallStatus: {
+        fontSize: 10,
+        color: '#007AFF',
+        marginLeft: 4,
+    },
+    smallStatusErr: {
+        fontSize: 10,
+        color: '#ff3b30',
+        marginLeft: 4,
     },
 });
