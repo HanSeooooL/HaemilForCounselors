@@ -306,3 +306,81 @@ export async function postChatResponse(jwt: string, message: string): Promise<Ch
         throw e;
     }
 }
+
+export type ExamScoreEntry = {
+    userid: string;
+    timestamp: number; // may be seconds or ms
+    scores: number[];
+};
+
+class ApiError extends Error {
+    status?: number;
+    code?: string;
+    constructor(message: string, status?: number, code?: string) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.code = code;
+    }
+}
+
+export async function fetchExamScores(jwt: string): Promise<ExamScoreEntry[]> {
+    const url = `${API_BASE}/depressionscore/examscores`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jwt }),
+        });
+
+        const text = await res.text().catch(() => '');
+        let parsed: any = null;
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+
+        if (!res.ok) {
+            // Try to extract server-side error code/message
+            const serverMsg = parsed?.message ?? parsed?.error ?? String(text);
+            throw new ApiError(`서버 오류: ${serverMsg}`, res.status, parsed?.error);
+        }
+
+        // 200 OK cases: either array of entries or { message: 'no_scores' }
+        if (Array.isArray(parsed)) {
+            // normalize timestamp to ms
+            const normalized: ExamScoreEntry[] = parsed.map((it: any) => ({
+                userid: String(it.userid ?? ''),
+                // handle number (seconds or ms) and ISO string timestamps
+                timestamp: (() => {
+                    const raw = it.timestamp;
+                    if (raw == null) return 0;
+                    if (typeof raw === 'number') {
+                        return raw < 2e12 ? Math.round(raw * 1000) : raw;
+                    }
+                    if (typeof raw === 'string') {
+                        // try numeric string first (seconds or ms)
+                        const n = Number(raw);
+                        if (!Number.isNaN(n)) return n < 2e12 ? Math.round(n * 1000) : n;
+                        // try parsing ISO / RFC date strings
+                        const p = Date.parse(raw);
+                        if (!Number.isNaN(p)) return p;
+                        return 0;
+                    }
+                    return 0;
+                })(),
+                scores: Array.isArray(it.scores) ? it.scores.map((s: any) => Number(s)) : [],
+            }));
+            return normalized;
+        }
+
+        if (parsed && typeof parsed === 'object' && parsed.message === 'no_scores') {
+            // no data available
+            return [];
+        }
+
+        // unexpected payload
+        throw new ApiError('응답 파싱 실패: 예상치 못한 페이로드', res.status, 'invalid_payload');
+    } catch (e: any) {
+        if (e instanceof ApiError) throw e;
+        console.error('[fetchExamScores] request failed', { name: e?.name, message: e?.message, url });
+        throw new ApiError(e?.message ?? '요청 실패', undefined, 'request_failed');
+    }
+}
