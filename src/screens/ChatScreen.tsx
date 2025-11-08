@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { TabBarHeightContext } from '../navigation/TabBarHeightContext';
 import { useAuth } from '../auth/AuthContext';
 import { getProfile, type UserProfile } from '../api';
 import { saveChatHistory, loadChatHistory, type StoredChatMessage } from '../storage/chatHistory';
@@ -108,7 +107,6 @@ function DateSeparator({ ts }: { ts: number }) {
 // Move all ChatScreen logic into an inner component that is rendered inside the GlobalInputProvider
 function ChatScreenInner({ route, navigation }: Props) {
     const insets = useSafeAreaInsets();
-    const [tabBarHeight] = React.useContext(TabBarHeightContext);
     const { token, signOut } = useAuth();
     const { registerSendHandler, inputBarHeight } = useGlobalInput();
 
@@ -131,7 +129,7 @@ function ChatScreenInner({ route, navigation }: Props) {
 
     // sending state is tracked via sendingRef; local UI state removed to avoid unused warnings
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [mode, setMode] = useState<'bot' | 'counselor'>('bot');
+    const [mode] = useState<'bot' | 'counselor'>('bot');
 
     const listRef = useRef<FlatList<ChatListItem>>(null);
     const contentHeightRef = useRef(0);
@@ -415,13 +413,7 @@ function ChatScreenInner({ route, navigation }: Props) {
             style={styles.container}
             behavior={undefined}
         >
-            {/* dev overlay: show measured heights when __DEV__ */}
-            {__DEV__ ? (
-                <View style={styles.debugOverlay} pointerEvents="none">
-                    <Text style={styles.debugText}>inputBar: {inputBarHeight}</Text>
-                    <Text style={styles.debugText}>tabBar: {tabBarHeight}</Text>
-                </View>
-            ) : null}
+            {/* development overlay removed */}
 
             <View style={[styles.header, { paddingTop: insets.top + 8, paddingBottom: 8 }]}>
                 <View style={styles.headerLeft}>
@@ -433,15 +425,7 @@ function ChatScreenInner({ route, navigation }: Props) {
                         <Text style={styles.headerCaret}>▾</Text>
                     </TouchableOpacity>
                 </View>
-                <View style={styles.headerRight}>
-                    {/* mode toggle kept for accessibility, but visually small */}
-                    <TouchableOpacity style={[styles.modeButton, mode === 'bot' && styles.modeButtonActive]} onPress={() => setMode('bot')}>
-                        <Text style={[styles.modeText, mode === 'bot' && styles.modeTextActive]}>챗봇</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.modeButton, mode === 'counselor' && styles.modeButtonActive]} onPress={() => setMode('counselor')}>
-                        <Text style={[styles.modeText, mode === 'counselor' && styles.modeTextActive]}>상담사</Text>
-                    </TouchableOpacity>
-                </View>
+                <View style={styles.headerRight} />
             </View>
 
             <FlatList
@@ -541,7 +525,7 @@ export default function ChatScreen(props: Props) {
      bubbleRowOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
      bubble: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
      bubbleMine: { backgroundColor: '#007AFF' },
-     bubbleOther: { backgroundColor: '#f1f1f1' },
+     bubbleOther: { backgroundColor: '#E4F0C1' },
      bubbleText: { fontSize: 16 },
      bubbleTextMine: { color: 'white' },
      bubbleTextOther: { color: '#111' },
@@ -618,7 +602,7 @@ export default function ChatScreen(props: Props) {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#f5d86b',
+        backgroundColor: 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 8,
@@ -629,4 +613,3 @@ export default function ChatScreen(props: Props) {
         transform: [{ rotate: '90deg' }],
     },
  });
-

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ChatStackParamList } from '../navigation/ChatStack';
 
@@ -12,6 +13,8 @@ const COUNSELORS = [
 ];
 
 export default function CounselListScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+
   const items = [
     { id: 'bot', name: '챗봇', subtitle: '자동 상담 챗봇', mode: 'bot' },
     ...COUNSELORS.map((c) => ({ id: c.id, name: c.name, subtitle: c.title, mode: 'counselor' })),
@@ -36,16 +39,19 @@ export default function CounselListScreen({ navigation }: Props) {
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>상담 선택</Text>
-      <FlatList data={items} keyExtractor={(i) => i.id} renderItem={renderItem} />
+    <View style={[styles.container, { paddingTop: insets.top + 8 }] }>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>상담 목록</Text>
+      </View>
+      <FlatList data={items} keyExtractor={(i) => i.id} renderItem={renderItem} contentContainerStyle={{ padding: 16 }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 12 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: { paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e5ea', backgroundColor: '#fff' },
+  headerTitle: { fontSize: 20, fontWeight: '600', padding: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee' },
   left: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 40, height: 40, borderRadius: 8, marginRight: 12 },
