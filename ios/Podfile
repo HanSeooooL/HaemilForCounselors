@@ -23,6 +23,8 @@ target 'HaemilForCounseolrs' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # (자동 링크로 lottie-react-native 및 lottie-ios 처리)
+
   post_install do |installer|
     react_native_post_install(
       installer,

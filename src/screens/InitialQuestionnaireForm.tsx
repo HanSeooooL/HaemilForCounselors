@@ -7,6 +7,7 @@ import type { AppStackParamList } from '../navigation/AppStack';
 import { UserFlags } from '../storage/userFlags';
 import { postFirstCheck } from '../api';
 import { useAuth } from '../auth/AuthContext';
+import LottieView from 'lottie-react-native';
 
 // 설계: 각 문항은 동일한 레이아웃. options 배열의 순서는 화면 노출 순서.
 // value/score 구조로 확장 가능. 현재는 label 중심.
@@ -347,7 +348,15 @@ export default function InitialQuestionnaireForm() {
             <TouchableOpacity onPress={goPrev} hitSlop={8} style={styles.prevBtn}><Text style={styles.prevBtnText}>이전</Text></TouchableOpacity>
           )}
         </View>
-
+        {/* Lottie 안내 애니메이션 */}
+        <View style={styles.lottieWrapper}>
+          <LottieView
+            source={require('../../assets/firstcheck-icon.json')}
+            autoPlay
+            loop
+            style={styles.lottie}
+          />
+        </View>
         {/* 본문 */}
         {!showSummary && (
           <>
@@ -400,4 +409,6 @@ const styles = StyleSheet.create({
   submitText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   summaryWrapper: { marginTop: 40 },
   summaryText: { fontSize: 16, lineHeight: 24, color: '#222', fontWeight: '500' },
+  lottieWrapper: { marginTop: 12, alignItems: 'center' },
+  lottie: { width: 160, height: 160 },
 });
