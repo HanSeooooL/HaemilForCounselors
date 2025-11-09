@@ -6,13 +6,17 @@ import { StatusBar, StyleSheet, useColorScheme, View, InteractionManager } from 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import AppStack from './src/navigation/AppStack';
+import type { AppStackParamList } from './src/navigation/AppStack';
 import RNBootSplash from 'react-native-bootsplash';
 
+const navRef = createNavigationContainerRef<AppStackParamList>();
+
 function Root() {
-    const { token, isLoading } = useAuth();
+    const { token, isLoading, justSignedUp } = useAuth();
     const isDarkMode = useColorScheme() === 'dark';
+    const [initialScreenResolved, setInitialScreenResolved] = React.useState(false);
 
     React.useEffect(() => {
         if (!isLoading) {
@@ -34,13 +38,30 @@ function Root() {
         };
     }, []);
 
-    if (isLoading) return <View style={styles.container} />;
+    React.useEffect(() => {
+        if (token && !initialScreenResolved) {
+            // Immediately resolve; we'll handle navigation via justSignedUp effect
+            setInitialScreenResolved(true);
+        }
+    }, [token, initialScreenResolved]);
+
+    // Navigate to intro once when conditions are met
+    React.useEffect(() => {
+        if (token && justSignedUp && navRef.isReady()) {
+            const name = navRef.getCurrentRoute()?.name;
+            if (name !== 'InitialQuestionnaireIntro') {
+                try { navRef.navigate('InitialQuestionnaireIntro'); } catch {}
+            }
+        }
+    }, [token, justSignedUp]);
+
+    if (isLoading || (token && !initialScreenResolved)) return <View style={styles.container} />;
 
     return (
         <View style={styles.container}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
             {token ? (
-                <NavigationContainer>
+                <NavigationContainer ref={navRef}>
                     <AppStack />
                 </NavigationContainer>
             ) : (

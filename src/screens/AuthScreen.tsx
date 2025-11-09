@@ -109,6 +109,7 @@ export default function AuthScreen() {
             }
 
             await signUp(payload);
+            // 라우팅은 Root(App.tsx)에서 토큰/플래그 상태를 감지해 처리합니다.
         } catch (e: any) {
             setErr(e?.message ?? '회원가입 중 오류가 발생했습니다');
         } finally {

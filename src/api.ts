@@ -384,3 +384,35 @@ export async function fetchExamScores(jwt: string): Promise<ExamScoreEntry[]> {
         throw new ApiError(e?.message ?? '요청 실패', undefined, 'request_failed');
     }
 }
+
+export type FirstCheckPayload = { jwt: string } & Record<`q${string}`, number>;
+
+export async function postFirstCheck(payload: FirstCheckPayload): Promise<void> {
+    const url = `${API_BASE}/depressionscore/firstcheck`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const statusText = res.statusText;
+            const text = await res.text().catch(() => '');
+            let serverMsg: string | undefined;
+            try {
+                const json = JSON.parse(text);
+                serverMsg = json?.message ?? json?.error;
+            } catch {
+                serverMsg = text;
+            }
+            console.error('[postFirstCheck] HTTP error', { status, statusText, message: serverMsg, url });
+            throw new Error(serverMsg ? `초기 문진 전송 실패: ${serverMsg} (HTTP ${status})` : `초기 문진 전송 실패 (HTTP ${status})`);
+        }
+        // 성공 시 200 OK, 바디는 사용하지 않음
+        return;
+    } catch (e: any) {
+        console.error('[postFirstCheck] request failed', { name: e?.name, message: e?.message, url });
+        throw e;
+    }
+}

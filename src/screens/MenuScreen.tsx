@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { AppStackParamList } from '../navigation/AppStack';
 type NavProp = NativeStackNavigationProp<AppStackParamList>;
 
 const MENU_ITEMS = [
+  { id: 'initialQuestionnaire', label: '자가문진표 안내' },
   { id: 'profile', label: '내 정보' },
   { id: 'settings', label: '설정 (미구현)' },
   { id: 'help', label: '도움말 (미구현)' },
@@ -20,13 +21,18 @@ export default function MenuScreen() {
   const onPress = (id: string) => {
     if (id === 'profile') {
       navigation.navigate('Profile');
+    } else if (id === 'initialQuestionnaire') {
+      navigation.navigate('InitialQuestionnaireIntro');
     }
   };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>전체 메뉴</Text>
+        <View style={styles.headerRow}>
+          <Image source={require('../../assets/Haemil-Logo-icon.png')} style={styles.headerLogo} />
+          <Text style={styles.headerTitle}>전체 메뉴</Text>
+        </View>
       </View>
 
       <FlatList
@@ -49,7 +55,9 @@ export default function MenuScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fff' },
   header: { paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e5ea', backgroundColor: '#fff' },
-  headerTitle: { fontSize: 20, fontWeight: '600', padding: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  headerLogo: { width: 28, height: 28, resizeMode: 'contain', marginRight: 8 },
+  headerTitle: { fontSize: 20, fontWeight: '600' },
   row: { paddingVertical: 14 },
   rowText: { fontSize: 16 },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: '#e5e5ea' },

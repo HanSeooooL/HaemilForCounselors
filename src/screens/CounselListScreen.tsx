@@ -41,7 +41,10 @@ export default function CounselListScreen({ navigation }: Props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }] }>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>상담 목록</Text>
+        <View style={styles.headerRow}>
+          <Image source={require('../../assets/Haemil-Logo-icon.png')} style={styles.headerLogo} />
+          <Text style={styles.headerTitle}>상담 목록</Text>
+        </View>
       </View>
       <FlatList data={items} keyExtractor={(i) => i.id} renderItem={renderItem} contentContainerStyle={{ padding: 16 }} />
     </View>
@@ -51,7 +54,9 @@ export default function CounselListScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e5ea', backgroundColor: '#fff' },
-  headerTitle: { fontSize: 20, fontWeight: '600', padding: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  headerLogo: { width: 28, height: 28, resizeMode: 'contain', marginRight: 8 },
+  headerTitle: { fontSize: 20, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee' },
   left: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 40, height: 40, borderRadius: 8, marginRight: 12 },
