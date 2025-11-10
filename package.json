@@ -10,7 +10,8 @@
     "test": "jest",
     "smoke:api": "node scripts/api-smoke.mjs",
     "splash:gen": "node scripts/gen-splash-assets.mjs",
-    "splash:gen:png": "node scripts/gen-splash-assets.mjs assets/my-splash.png 200 #2C7A4B"
+    "splash:gen:png": "node scripts/gen-splash-assets.mjs assets/my-splash.png 200 #2C7A4B",
+    "icons:gen": "node scripts/gen-app-icons.mjs assets/new-splash-logo.png"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
