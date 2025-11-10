@@ -29,6 +29,13 @@ export type ChatMessage = {
     status?: 'sending' | 'sent' | 'failed';
 };
 
+// 페이지 로드 크기
+const PAGE_SIZE = 10;
+// 상단 로드 트리거/리셋 임계값 (히스테리시스)
+const TOP_TRIGGER_Y = 8;   // 이 값 이하에서만 상단 로드 트리거
+const TOP_RESET_Y = 120;   // 이 값 이상으로 내려오면 다음 로드를 허용
+const NEAR_BOTTOM_THRESHOLD = 80; // 하단 근처 판정 여유 픽셀
+
 // 날짜 구분선과 메시지를 함께 다루는 리스트 아이템 타입
 type ChatListItem =
     | { kind: 'date'; id: string; date: number }
@@ -134,27 +141,29 @@ function ChatScreenInner({ route, navigation }: Props) {
     const listRef = useRef<FlatList<ChatListItem>>(null);
     const contentHeightRef = useRef(0);
     const listHeightRef = useRef(0);
+    // 페이징용 refs
+    const remainingHistoryRef = useRef<ChatMessage[]>([]); // 아직 화면에 올리지 않은 과거 메시지
+    const loadingOlderRef = useRef(false); // 이전 페이지 로드 중 여부
+    const suppressAutoScrollRef = useRef(false); // 하단 자동 스크롤 억제 (초기/프리펜드 상황 등)
+    const canLoadOlderRef = useRef(true); // 상단 로드 히스테리시스: true일 때만 트리거
+    const userNearBottomRef = useRef(true); // 현재 사용자가 하단 근처에 있는지
+    const scrollOffsetRef = useRef(0); // 현재 스크롤 y 오프셋
+    const preservePrependRef = useRef<{active:boolean; prevContentHeight:number; prevScrollOffset:number}>({active:false, prevContentHeight:0, prevScrollOffset:0});
     // dynamic footer height that ensures last message sits above inputBar
     const initialFooter = (inputBarHeight || 0) + 24;
     const [footerHeight, setFooterHeight] = useState<number>(initialFooter);
     const footerHeightRef = useRef<number>(initialFooter);
 
-    const scrollToBottom = useCallback((animated = true) => {
+    const scrollToBottom = useCallback(() => {
       try {
-        // mark param used to avoid linter/TS unused-param warning
-        void animated;
-        // Compute sizes
         const contentH = contentHeightRef.current || 0;
         const listH = listHeightRef.current || 0;
-        // If content fits within the list, do nothing — footer spacer already positions content
         if (contentH <= listH) return;
-        // content overflows: scroll to exact offset so bottom content sits above footer spacer
         const offset = Math.max(0, contentH - listH);
-        // Do a two-frame wait then perform non-animated precise scroll
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          try { listRef.current?.scrollToOffset({ offset, animated: false }); } catch (e) { /* swallow */ }
-        }));
-      } catch (e) { /* swallow */ }
+        requestAnimationFrame(() => {
+          try { listRef.current?.scrollToOffset({ offset, animated: false }); } catch {}
+        });
+      } catch {}
     }, []);
 
     // --- WebSocket state (component-scoped) ---
@@ -299,18 +308,28 @@ function ChatScreenInner({ route, navigation }: Props) {
                     .filter((m): m is StoredChatMessage => !!m)
                     .sort((a, b) => a.createdAt - b.createdAt)
                     .map(m => ({ ...m }));
-                setMessagesSafe(restored);
-                requestAnimationFrame(() => scrollToBottom(false));
+                if (restored.length <= PAGE_SIZE) {
+                    remainingHistoryRef.current = [];
+                    setMessagesSafe(restored);
+                } else {
+                    // 최근 PAGE_SIZE만 화면 표시, 이전 것은 remainingHistoryRef에 저장
+                    remainingHistoryRef.current = restored.slice(0, restored.length - PAGE_SIZE);
+                    setMessagesSafe(restored.slice(-PAGE_SIZE));
+                }
+                // 초기 진입 시에는 최신 메시지들이 보이도록 하단으로 스크롤
+                requestAnimationFrame(() => scrollToBottom());
                 return;
             }
-            // 저장된 메시지가 없으면 초기 메시지는 비워둡니다 (빈 배열 유지)
+            remainingHistoryRef.current = [];
+            // 저장된 메시지가 없으면 빈 배열 유지
         })();
     }, [token, profile?.id, mode]);
 
-    // 메시지 변경될 때마다 저장 (모드와 프로필을 포함한 키 사용)
+    // 메시지 변경될 때마다 저장 (화면에 보이는 messages + 아직 안 불러온 remainingHistoryRef 합침)
     useEffect(() => {
         const userKey = profile?.id ? `${profile.id}_${mode}` : undefined;
-        saveChatHistory(token, messages, userKey);
+        const fullHistory = [...remainingHistoryRef.current, ...messages];
+        saveChatHistory(token, fullHistory, userKey);
     }, [token, messages, profile?.id, mode]);
 
     const sorted = useMemo(() => [...messages].sort((a, b) => a.createdAt - b.createdAt), [messages]);
@@ -371,6 +390,27 @@ function ChatScreenInner({ route, navigation }: Props) {
         }
     }, [token, mode, signOut]);
 
+    // 상단으로 스크롤 시 이전 페이지 로드
+    const loadNextOlderPage = useCallback(() => {
+        if (loadingOlderRef.current) return;
+        if (!remainingHistoryRef.current.length) return;
+        loadingOlderRef.current = true;
+        suppressAutoScrollRef.current = true; // prepend 중에는 하단 스크롤 금지
+        preservePrependRef.current = {
+          active: true,
+          prevContentHeight: contentHeightRef.current || 0,
+          prevScrollOffset: scrollOffsetRef.current || 0,
+        };
+        // older(과거) 메시지 중 가장 최신 묶음(끝쪽) PAGE_SIZE 추출
+        const takeCount = Math.min(PAGE_SIZE, remainingHistoryRef.current.length);
+        const startIdx = remainingHistoryRef.current.length - takeCount;
+        const page = remainingHistoryRef.current.slice(startIdx); // 오름차순 상태 유지
+        remainingHistoryRef.current = remainingHistoryRef.current.slice(0, startIdx);
+        // prepend
+        setMessagesSafe(prev => [...page, ...prev]);
+        loadingOlderRef.current = false;
+    }, []);
+
     // register a stable handler that calls performSend(text)
     useEffect(() => {
          const handler = (text: string) => { performSend(text); };
@@ -383,7 +423,7 @@ function ChatScreenInner({ route, navigation }: Props) {
         if (!inputBarHeight) return;
         if (!messages || messages.length === 0) return;
         // wait two frames to ensure layout finished, then scroll
-        requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(false)));
+        requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom()));
     }, [inputBarHeight, messages.length, scrollToBottom]);
 
     // 컴포넌트 언마운트 또는 토큰/모드 변경 시 소켓 정리
@@ -444,26 +484,39 @@ function ChatScreenInner({ route, navigation }: Props) {
                  contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, justifyContent: 'flex-start' }}
                  ListFooterComponent={<View style={{ height: footerHeight }} />}
                  onContentSizeChange={(w, h) => {
-                   // h includes the previous footerHeight; compute contentWithoutFooter
                    const prevFooter = footerHeightRef.current || initialFooter;
                    const contentWithoutFooter = Math.max(0, h - prevFooter);
                    const listH = listHeightRef.current || 0;
-                   // compute desired footer so messages are pushed above inputBar
                    const desiredFooter = (inputBarHeight || 0) + 24 + Math.max(0, listH - contentWithoutFooter);
                    if (desiredFooter !== footerHeightRef.current) {
                      footerHeightRef.current = desiredFooter;
                      setFooterHeight(desiredFooter);
-                     // after state update, content will change — we still proceed to update refs
                      contentHeightRef.current = contentWithoutFooter + desiredFooter;
                    } else {
                      contentHeightRef.current = h;
                    }
-                   // wait two frames to ensure layout finished and footer accounted for, then scroll
-                   requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(true)));
+
+                   // 프리펜드 직후 위치 보정: 이전 contentHeight 대비 증가분만큼 offset 증가
+                   if (preservePrependRef.current.active) {
+                     const delta = (contentHeightRef.current || 0) - preservePrependRef.current.prevContentHeight;
+                     if (delta > 0) {
+                       const newOffset = preservePrependRef.current.prevScrollOffset + delta;
+                       requestAnimationFrame(() => {
+                         try { listRef.current?.scrollToOffset({ offset: newOffset, animated: false }); } catch {}
+                       });
+                     }
+                     preservePrependRef.current.active = false;
+                     // 프리펜드 후 자동 하단 스크롤 억제 유지, 사용자가 아래로 다시 내릴 때까지
+                     return;
+                   }
+
+                   // 사용자 하단 근처일 때만 자동 하단 스크롤
+                   if (userNearBottomRef.current && !suppressAutoScrollRef.current) {
+                     requestAnimationFrame(() => scrollToBottom());
+                   }
                  }}
                  onLayout={(e) => {
                    listHeightRef.current = e.nativeEvent.layout.height;
-                   // recompute footer when layout changes
                    const prevFooter = footerHeightRef.current || initialFooter;
                    const contentWithoutFooter = Math.max(0, (contentHeightRef.current || 0) - prevFooter);
                    const desiredFooter = (inputBarHeight || 0) + 24 + Math.max(0, listHeightRef.current - contentWithoutFooter);
@@ -472,9 +525,35 @@ function ChatScreenInner({ route, navigation }: Props) {
                      setFooterHeight(desiredFooter);
                      contentHeightRef.current = contentWithoutFooter + desiredFooter;
                    }
-                   requestAnimationFrame(() => scrollToBottom(false));
+                   // 초기/레이아웃 변화 시에는 하단 근처이면만 스크롤
+                   if (userNearBottomRef.current && !preservePrependRef.current.active && !suppressAutoScrollRef.current) {
+                     requestAnimationFrame(() => scrollToBottom());
+                   }
                  }}
-                />
+                 onScroll={(e) => {
+                   const y = e.nativeEvent.contentOffset.y;
+                   scrollOffsetRef.current = y;
+                   const contentH = contentHeightRef.current || 0;
+                   const listH = listHeightRef.current || 0;
+                   // 하단 근처 판정
+                   const nearBottom = y + listH + NEAR_BOTTOM_THRESHOLD >= contentH;
+                   userNearBottomRef.current = nearBottom;
+                   if (nearBottom) {
+                     // 사용자가 다시 아래로 왔으므로 자동 스크롤 억제 해제
+                     suppressAutoScrollRef.current = false;
+                   }
+                   // 상단 로드 히스테리시스
+                   if (y <= TOP_TRIGGER_Y) {
+                     if (canLoadOlderRef.current) {
+                       canLoadOlderRef.current = false;
+                       loadNextOlderPage();
+                     }
+                   } else if (y > TOP_RESET_Y) {
+                     canLoadOlderRef.current = true;
+                   }
+                 }}
+                 scrollEventThrottle={16}
+            />
 
             {/* InputBar is fixed at the bottom (GlobalInputBar is absolute-positioned) */}
             <GlobalInputBar />

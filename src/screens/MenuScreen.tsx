@@ -10,8 +10,6 @@ type NavProp = NativeStackNavigationProp<AppStackParamList>;
 const MENU_ITEMS = [
   { id: 'initialQuestionnaire', label: '자가문진표 안내' },
   { id: 'profile', label: '내 정보' },
-  { id: 'settings', label: '설정 (미구현)' },
-  { id: 'help', label: '도움말 (미구현)' },
 ];
 
 export default function MenuScreen() {
