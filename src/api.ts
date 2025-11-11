@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
+import Config from 'react-native-config'
 
-const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+const HOST = Platform.OS === 'android' ? '10.0.2.2' : Config.API_URL;
 const API_BASE = `http://${HOST}:8080`;
 
 type AuthResponse = { token?: string; jwt?: string; id?: string; email?: string };
