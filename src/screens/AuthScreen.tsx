@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Pressable, Image } from 'react-native';
+import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Pressable, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import type { Gender, RegisterPayload } from '../api';
 
@@ -278,75 +278,87 @@ export default function AuthScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            {mode === 'signin' ? (
-                <>
-                    <Image source={require('../../assets/new-splash-logo.png')} style={styles.logo} resizeMode="contain" />
-                    <Text style={styles.titleHuge}>좋은 하루{"\n"}보내셨나요?</Text>
-                    <TextInput
-                        placeholder="아이디 입력"
-                        placeholderTextColor="#bdbdbd"
-                        autoCapitalize="none"
-                        value={id}
-                        onChangeText={setId}
-                        style={styles.loginInput}
-                    />
-                    <TextInput
-                        placeholder="비밀번호 입력"
-                        placeholderTextColor="#bdbdbd"
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                        style={styles.loginInput}
-                    />
-                    {err ? <Text style={styles.error}>{err}</Text> : null}
-                    <TouchableOpacity style={styles.bigButton} onPress={onLogin} activeOpacity={0.8} disabled={loading}>
-                        <Text style={styles.bigButtonText}>{loading ? '처리중...' : '로그인'}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.switchRow}>
-                        <Text>해밀이 처음이신가요? </Text>
-                        <Text
-                            style={styles.link}
-                            onPress={() => {
-                                setMode('signup');
-                                resetSignup();
-                            }}
-                        >
-                            회원가입
-                        </Text>
-                    </View>
-                </>
-            ) : (
-                <>
-                    {renderSignupStep()}
-                    {err ? <Text style={styles.error}>{err}</Text> : null}
-                    {step > 0 && step < 3 && (
-                        <View style={styles.row}>
-                            {step > 0 && (
-                                <Button title="뒤로" onPress={onSignupBack} disabled={loading} />
-                            )}
-                            {step < 3 ? (
-                                <Button title={loading ? '처리중...' : '다음'} onPress={onSignupNext} disabled={loading} />
-                            ) : (
-                                <Button title={loading ? '처리중...' : '회원가입 완료'} onPress={onSignupSubmit} disabled={loading} />
-                            )}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}>
+            <ScrollView contentContainerStyle={[styles.container, { flexGrow: 1 }]} keyboardShouldPersistTaps="handled">
+                {mode === 'signin' ? (
+                    <>
+                        <Image source={require('../../assets/new-splash-logo.png')} style={styles.logo} resizeMode="contain" />
+                        <Text style={styles.titleHuge}>좋은 하루{"\n"}보내셨나요?</Text>
+                        <TextInput
+                            placeholder="아이디 입력"
+                            placeholderTextColor="#bdbdbd"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            autoComplete="username"
+                            textContentType="username"
+                            value={id}
+                            onChangeText={setId}
+                            style={styles.loginInput}
+                            returnKeyType="next"
+                            onSubmitEditing={() => {}}
+                        />
+                        <TextInput
+                            placeholder="비밀번호 입력"
+                            placeholderTextColor="#bdbdbd"
+                            secureTextEntry
+                            autoCorrect={false}
+                            autoComplete="password"
+                            textContentType="password"
+                            value={password}
+                            onChangeText={setPassword}
+                            style={styles.loginInput}
+                            returnKeyType="done"
+                            onSubmitEditing={() => {}}
+                        />
+                        {err ? <Text style={styles.error}>{err}</Text> : null}
+                        <TouchableOpacity style={styles.bigButton} onPress={onLogin} activeOpacity={0.8} disabled={loading}>
+                            <Text style={styles.bigButtonText}>{loading ? '처리중...' : '로그인'}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.switchRow}>
+                            <Text>해밀이 처음이신가요? </Text>
+                            <Text
+                                style={styles.link}
+                                onPress={() => {
+                                    setMode('signup');
+                                    resetSignup();
+                                }}
+                            >
+                                회원가입
+                            </Text>
                         </View>
-                    )}
-                    <View style={styles.switchRow}>
-                        <Text>이미 계정이 있나요? </Text>
-                        <Text
-                            style={styles.link}
-                            onPress={() => {
-                                setMode('signin');
-                                setErr(null);
-                            }}
-                        >
-                            로그인
-                        </Text>
-                    </View>
-                </>
-            )}
-        </View>
+                    </>
+                ) : (
+                    <>
+                        {renderSignupStep()}
+                        {err ? <Text style={styles.error}>{err}</Text> : null}
+                        {step > 0 && step < 3 && (
+                            <View style={styles.row}>
+                                {step > 0 && (
+                                    <Button title="뒤로" onPress={onSignupBack} disabled={loading} />
+                                )}
+                                {step < 3 ? (
+                                    <Button title={loading ? '처리중...' : '다음'} onPress={onSignupNext} disabled={loading} />
+                                ) : (
+                                    <Button title={loading ? '처리중...' : '회원가입 완료'} onPress={onSignupSubmit} disabled={loading} />
+                                )}
+                            </View>
+                        )}
+                        <View style={styles.switchRow}>
+                            <Text>이미 계정이 있나요? </Text>
+                            <Text
+                                style={styles.link}
+                                onPress={() => {
+                                    setMode('signin');
+                                    setErr(null);
+                                }}
+                            >
+                                로그인
+                            </Text>
+                        </View>
+                    </>
+                )}
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 

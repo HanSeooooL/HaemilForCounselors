@@ -116,6 +116,9 @@ function ChatScreenInner({ route, navigation }: Props) {
     const insets = useSafeAreaInsets();
     const { token, signOut } = useAuth();
     const { registerSendHandler, inputBarHeight } = useGlobalInput();
+    // 추가: 헤더 높이 측정을 위한 ref/state
+    const headerRef = useRef<View | null>(null);
+    const [headerHeight, setHeaderHeight] = useState(0);
 
     // input state handled by GlobalInputBar; no local input state required
 
@@ -451,11 +454,16 @@ function ChatScreenInner({ route, navigation }: Props) {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={headerHeight}
         >
             {/* development overlay removed */}
 
-            <View style={[styles.header, { paddingTop: insets.top + 8, paddingBottom: 8 }]}>
+            <View
+              ref={headerRef}
+              onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h && h !== headerHeight) setHeaderHeight(h); }}
+              style={[styles.header, { paddingTop: insets.top + 8, paddingBottom: 8 }]}
+            >
                 <View style={styles.headerLeft}>
                     <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : null} style={styles.backButton} accessibilityLabel="뒤로가기">
                         <Text style={styles.backIcon}>‹</Text>

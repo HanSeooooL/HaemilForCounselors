@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, TextInput, TouchableOpacity, Image, StyleSheet, Platform, Keyboard, EmitterSubscription } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGlobalInput } from '../contexts/GlobalInputContext';
 
@@ -7,6 +7,7 @@ export default function GlobalInputBar() {
   const insets = useSafeAreaInsets();
   const { setInputBarHeight, inputBarHeight, emitSend } = useGlobalInput();
   const [text, setText] = useState('');
+  const [kbHeight, setKbHeight] = useState(0);
 
   // 높이 측정(onLayout)만 수행
   const onLayout = (e: any) => {
@@ -14,14 +15,46 @@ export default function GlobalInputBar() {
     if (h && h !== inputBarHeight) setInputBarHeight(h);
   };
 
+  useEffect(() => {
+    let showSub: EmitterSubscription | undefined;
+    let hideSub: EmitterSubscription | undefined;
+    if (Platform.OS === 'ios') {
+      showSub = Keyboard.addListener('keyboardWillShow', (e) => {
+        const h = e.endCoordinates?.height ?? 0;
+        setKbHeight(h);
+      });
+      hideSub = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    } else {
+      showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+        const h = e.endCoordinates?.height ?? 0;
+        setKbHeight(h);
+      });
+      hideSub = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    }
+    return () => {
+      try { showSub && showSub.remove(); } catch {}
+      try { hideSub && hideSub.remove(); } catch {}
+    };
+  }, []);
+
   const triggerSend = () => {
     if (!text.trim()) return;
     emitSend(text.trim());
     setText('');
   };
 
+  const bottomPad = (insets.bottom || 0) + 12;
+  const translateY = Platform.OS === 'ios' ? -Math.max(0, kbHeight - (insets.bottom || 0)) : 0;
+
   return (
-    <View onLayout={onLayout} style={[styles.container, { paddingBottom: (insets.bottom || 0) + 12 }] }>
+    <View
+      onLayout={onLayout}
+      style={[
+        styles.container,
+        { paddingBottom: bottomPad, transform: [{ translateY }] },
+      ]}
+      pointerEvents="box-none"
+    >
       <View style={styles.inner}>
         <TextInput
           style={styles.input}
@@ -50,6 +83,12 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#e5e5ea',
+    zIndex: 1000,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
   },
   inner: { flexDirection: 'row', alignItems: 'center' },
   input: {
