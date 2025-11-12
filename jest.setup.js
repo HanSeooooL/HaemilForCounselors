@@ -31,9 +31,11 @@ import 'react-native-gesture-handler/jestSetup';
 // Mock react-navigation modules to avoid ESM parsing in Jest
 jest.mock('@react-navigation/native', () => {
   const React = require('react');
+  const refObj = { current: null };
   return {
     NavigationContainer: ({ children }) => React.createElement(React.Fragment, null, children),
     useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    createNavigationContainerRef: () => refObj,
   };
 });
 
@@ -62,3 +64,28 @@ jest.mock('react-native-bootsplash', () => ({
   hide: jest.fn(() => Promise.resolve()),
   isVisible: jest.fn(() => Promise.resolve(true)),
 }));
+
+// Mock notifee
+jest.mock('@notifee/react-native', () => ({
+  requestPermission: jest.fn(async () => ({ authorizationStatus: 1 })),
+  createChannel: jest.fn(async () => 'default'),
+  displayNotification: jest.fn(async () => {}),
+  onForegroundEvent: jest.fn(() => () => {}),
+  AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+  EventType: { PRESS: 1 },
+}));
+
+// Mock @react-native-firebase/messaging
+jest.mock('@react-native-firebase/messaging', () => {
+  const listeners = { onMessage: null, onTokenRefresh: null };
+  const api = () => ({
+    requestPermission: jest.fn(async () => 1),
+    getToken: jest.fn(async () => 'test-token'),
+    onMessage: jest.fn((cb) => { listeners.onMessage = cb; return () => { listeners.onMessage = null; }; }),
+    onTokenRefresh: jest.fn((cb) => { listeners.onTokenRefresh = cb; return () => { listeners.onTokenRefresh = null; }; }),
+    setBackgroundMessageHandler: jest.fn(() => {}),
+    AuthorizationStatus: { AUTHORIZED: 1, PROVISIONAL: 2 },
+  });
+  api.AuthorizationStatus = { AUTHORIZED: 1, PROVISIONAL: 2 };
+  return api;
+});

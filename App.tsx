@@ -10,6 +10,8 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import AppStack from './src/navigation/AppStack';
 import type { AppStackParamList } from './src/navigation/AppStack';
 import RNBootSplash from 'react-native-bootsplash';
+import { initPush } from './src/ws/push';
+import { postDeviceToken } from './src/api';
 
 const navRef = createNavigationContainerRef<AppStackParamList>();
 
@@ -54,6 +56,17 @@ function Root() {
             }
         }
     }, [token, justSignedUp]);
+
+    React.useEffect(() => {
+        // token이 생기는 시점에 push 초기화 (idempotent)
+        if (token) {
+            initPush({
+                onToken: async (fcm) => {
+                    try { await postDeviceToken(token, fcm); } catch (e) { console.error('FCM 토큰 서버 등록 실패', e); }
+                },
+            });
+        }
+    }, [token]);
 
     if (isLoading || (token && !initialScreenResolved)) return <View style={styles.container} />;
 

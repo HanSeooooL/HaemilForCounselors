@@ -95,3 +95,75 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+## Push Notifications (FCM + Notifee)
+
+### 1. Firebase 설정 파일 배치
+- Android: `android/app/google-services.json`
+- iOS: `ios/HaemilForCounseolrs/GoogleService-Info.plist` (Xcode 프로젝트에 추가되어야 함)
+
+### 2. iOS 추가 설정
+- `AppDelegate.swift` 에 `FirebaseApp.configure()` 호출되어 있어야 함.
+- APNs 인증 키 또는 p12 를 Firebase 콘솔 Cloud Messaging 설정에 업로드.
+- 필요 시 Info.plist 에 Background Modes (`remote-notification`) 추가.
+
+### 3. 권한 요청 흐름
+앱 최초 로그인 후 `App.tsx` 에서 FCM 초기화를 수행하며 플랫폼별 알림 권한을 요청합니다.
+
+### 4. 서버 토큰 등록
+`postDeviceToken(jwt, fcmToken)` 함수가 `/push/register` 엔드포인트로 디바이스 토큰을 전송합니다. 서버는 사용자별 최신 FCM 토큰을 저장하고 만료/갱신(onTokenRefresh) 이벤트를 반영해야 합니다.
+
+예시 서버 저장 모델:
+```json
+{
+  "userId": "abc123",
+  "platform": "android",
+  "fcmToken": "...",
+  "updatedAt": "2025-11-12T10:00:00Z"
+}
+```
+
+### 5. 포그라운드/백그라운드 처리
+- 포그라운드: `onMessage` → 없으면 Notifee 로 기본 알림 표시.
+- 백그라운드/종료: FCM data+notification payload 를 사용하여 시스템 트레이 표시.
+
+### 6. 테스트 방법
+#### Android 에뮬레이터/디바이스
+```bash
+adb logcat | grep FCM
+```
+Firebase 콘솔 혹은 curl 로 테스트 전송 (HTTP v1):
+```bash
+curl -X POST \\
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \\
+  -H "Content-Type: application/json" \\
+  https://fcm.googleapis.com/v1/projects/PROJECT_ID/messages:send \\
+  -d '{
+    "message": {
+      "token": "DEVICE_FCM_TOKEN",
+      "notification": { "title": "테스트", "body": "푸시 메시지" },
+      "data": { "custom": "value" }
+    }
+  }'
+```
+#### iOS Simulator
+- iOS 시뮬레이터는 실제 푸시 수신 불가. 실제 기기에서 테스트.
+
+### 7. 토픽/그룹 확장 (선택)
+토픽 구독:
+```ts
+import messaging from '@react-native-firebase/messaging';
+await messaging().subscribeToTopic('weekly-updates');
+```
+
+### 8. 흔한 문제
+| 증상 | 해결 |
+|------|------|
+| iOS 푸시 미수신 | APNs 키 누락/entitlements production 미변경 |
+| 토큰 null | 권한 거부 / FirebaseApp.configure() 누락 |
+| Android 알림 안 뜸 | 채널 미생성 → `default` 채널 재확인 |
+
+### 9. 구조 요약
+- 초기화: `src/ws/push.ts` (`initPush`) → App.tsx token effect
+- 표시: Notifee `displayNotification`
+- 서버 연동: `postDeviceToken`

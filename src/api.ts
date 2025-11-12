@@ -1,7 +1,6 @@
 import { Platform } from 'react-native';
-import Config from 'react-native-config'
 
-const HOST = Platform.OS === 'android' ? '10.0.2.2' : Config.API_URL;
+const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
 const API_BASE = `http://${HOST}:8080`;
 
 type AuthResponse = { token?: string; jwt?: string; id?: string; email?: string };
@@ -415,5 +414,23 @@ export async function postFirstCheck(payload: FirstCheckPayload): Promise<void> 
     } catch (e: any) {
         console.error('[postFirstCheck] request failed', { name: e?.name, message: e?.message, url });
         throw e;
+    }
+}
+
+export async function postDeviceToken(jwt: string, deviceToken: string, platform: string = Platform.OS): Promise<void> {
+    const url = `${API_BASE}/push/register`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+            body: JSON.stringify({ token: deviceToken, platform }),
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const text = await res.text().catch(() => '');
+            throw new Error(`디바이스 토큰 등록 실패 (${status}): ${text}`);
+        }
+    } catch (e) {
+        console.error('[postDeviceToken] 실패', e);
     }
 }
