@@ -489,7 +489,7 @@ function ChatScreenInner({ route, navigation }: Props) {
                       )
                   )}
                   // Use a footer spacer to guarantee the final item sits above the absolute InputBar
-                 contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, justifyContent: 'flex-start' }}
+                 contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, justifyContent: 'flex-end' }}
                  ListFooterComponent={<View style={{ height: footerHeight }} />}
                  onContentSizeChange={(w, h) => {
                    const prevFooter = footerHeightRef.current || initialFooter;

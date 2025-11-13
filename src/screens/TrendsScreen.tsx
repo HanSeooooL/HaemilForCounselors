@@ -55,6 +55,7 @@ export default function TrendsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<ExamScoreEntry[] | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   // import chart lib dynamically
   useEffect(() => {
@@ -248,6 +249,22 @@ export default function TrendsScreen() {
     );
   }
 
+  async function onPressGenerateReport() {
+    if (!token || reportLoading) return;
+    setReportLoading(true);
+    try {
+      const { generateReport } = await import('../api');
+      await generateReport(token);
+      // 성공: 서버는 200만 반환한다고 하였으므로 간단히 알림
+      try { (await import('react-native')).Alert.alert('보고서 생성', '보고서 생성 요청이 완료되었습니다.'); } catch {}
+    } catch (e: any) {
+      const msg = e?.message ?? '보고서 생성 중 오류가 발생했습니다';
+      try { (await import('react-native')).Alert.alert('실패', msg); } catch {}
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <View style={styles.header}>
@@ -273,6 +290,14 @@ export default function TrendsScreen() {
             <Text style={styles.centerScore}>{latestSum == null ? '-' : `${latestSum}점`}</Text>
             {(() => { const t = getTrendMessage(latestSum, previousSum); return t ? <Text style={styles.trendText}>{t}</Text> : null; })()}
             {(() => { if (!topQuestion) return null; const name = (topQuestion.question && QUESTION_NAMES[topQuestion.question - 1]) || `${topQuestion.question}번`; return <Text style={styles.topQuestion}>이번 회차에서 가장 영향을 많이 받은 문항은 {name}이에요</Text>; })()}
+            <TouchableOpacity
+              style={[styles.questionTrendBtn, { opacity: reportLoading ? 0.6 : 1 }]}
+              onPress={onPressGenerateReport}
+              disabled={reportLoading}
+              accessibilityLabel="보고서 생성"
+            >
+              <Text style={styles.questionTrendBtnText}>{reportLoading ? '생성 중…' : '보고서 생성'}</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.questionTrendBtn} onPress={() => { if (topQuestion && topQuestion.question) setSelectedQuestionIndex(topQuestion.question - 1); else setSelectedQuestionIndex(0); setModalVisible(true); }}>
               <Text style={styles.questionTrendBtnText}>문항별 추이 조회</Text>
             </TouchableOpacity>

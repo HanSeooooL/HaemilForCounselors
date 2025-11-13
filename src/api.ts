@@ -417,3 +417,34 @@ export async function postFirstCheck(payload: FirstCheckPayload): Promise<void> 
         throw e;
     }
 }
+
+// 보고서 생성 API: /report/report
+export async function generateReport(jwt: string): Promise<void> {
+    const url = `${API_BASE}/report/report`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jwt }),
+        });
+        if (!res.ok) {
+            const status = res.status;
+            const statusText = res.statusText;
+            const text = await res.text().catch(() => '');
+            let serverMsg: string | undefined;
+            try {
+                const json = JSON.parse(text);
+                serverMsg = json?.message ?? json?.error;
+            } catch {
+                serverMsg = text;
+            }
+            console.error('[generateReport] HTTP error', { status, statusText, message: serverMsg, url });
+            throw new Error(serverMsg ? `보고서 생성 실패: ${serverMsg} (HTTP ${status})` : `보고서 생성 실패 (HTTP ${status})`);
+        }
+        // 성공 시 200 OK, 바디 사용 안 함
+        return;
+    } catch (e: any) {
+        console.error('[generateReport] request failed', { name: e?.name, message: e?.message, url });
+        throw e;
+    }
+}

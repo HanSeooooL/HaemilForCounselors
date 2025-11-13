@@ -331,18 +331,6 @@ export default function AuthScreen() {
                     <>
                         {renderSignupStep()}
                         {err ? <Text style={styles.error}>{err}</Text> : null}
-                        {step > 0 && step < 3 && (
-                            <View style={styles.row}>
-                                {step > 0 && (
-                                    <Button title="뒤로" onPress={onSignupBack} disabled={loading} />
-                                )}
-                                {step < 3 ? (
-                                    <Button title={loading ? '처리중...' : '다음'} onPress={onSignupNext} disabled={loading} />
-                                ) : (
-                                    <Button title={loading ? '처리중...' : '회원가입 완료'} onPress={onSignupSubmit} disabled={loading} />
-                                )}
-                            </View>
-                        )}
                         <View style={styles.switchRow}>
                             <Text>이미 계정이 있나요? </Text>
                             <Text

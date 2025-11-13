@@ -1,4 +1,3 @@
-// filepath: /Users/hanseol/Desktop/projects/HaemilForCounseolrs/jest.setup.js
 // Mock AsyncStorage for Jest environment
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
 
@@ -31,9 +30,15 @@ import 'react-native-gesture-handler/jestSetup';
 // Mock react-navigation modules to avoid ESM parsing in Jest
 jest.mock('@react-navigation/native', () => {
   const React = require('react');
+  const ref = {
+    isReady: () => true,
+    navigate: jest.fn(),
+    getCurrentRoute: () => ({ name: 'Home' }),
+  };
   return {
     NavigationContainer: ({ children }) => React.createElement(React.Fragment, null, children),
     useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    createNavigationContainerRef: () => ref,
   };
 });
 
@@ -61,4 +66,11 @@ jest.mock('@react-navigation/native-stack', () => {
 jest.mock('react-native-bootsplash', () => ({
   hide: jest.fn(() => Promise.resolve()),
   isVisible: jest.fn(() => Promise.resolve(true)),
+}));
+
+// Mock react-native-config to avoid ESM parse error and provide API_URL
+jest.mock('react-native-config', () => ({
+  __esModule: true,
+  default: { API_URL: '127.0.0.1' },
+  API_URL: '127.0.0.1',
 }));
