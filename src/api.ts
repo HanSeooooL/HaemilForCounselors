@@ -2,17 +2,20 @@ import { Platform } from 'react-native';
 import Config from 'react-native-config'
 
 const HOST = Platform.OS === 'android' ? '10.0.2.2' : Config.API_URL;
+// const HOST = '52.79.194.19'
 const API_BASE = `http://${HOST}:8080`;
 
 type AuthResponse = { token?: string; jwt?: string; id?: string; email?: string };
 
-export async function login(id: string, password: string): Promise<string> {
+export async function login(id: string, password: string, fcmToken?: string): Promise<string> {
     const url = `${API_BASE}/auth/login`;
     try {
+        const body: Record<string, any> = { id, password };
+        if (fcmToken) body.fcmToken = fcmToken;
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, password }),
+            body: JSON.stringify(body),
         });
         if (!res.ok) {
             const status = res.status;
@@ -47,11 +50,11 @@ export type RegisterPayload = {
     age?: number;
     height?: number; // cm
     weight?: number; // kg
+    fcmToken?: string; // 추가: FCM 토큰
 };
 
 export async function register(payload: RegisterPayload): Promise<string> {
     const url = `${API_BASE}/auth/signup`;
-    // 민감정보 마스킹하여 요청 로그 (디버그용)
     const safeLog = { ...payload, password: '***' };
     console.log('[register] request', safeLog);
     try {

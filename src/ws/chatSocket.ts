@@ -5,6 +5,7 @@
 import { Platform } from 'react-native';
 
 const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+// const HOST = '52.79.194.19'
 const WS_PATH = `/chat/ws`;
 const WS_BASE_URL = `ws://${HOST}:8080${WS_PATH}`; // base, token will be appended as query param when provided
 

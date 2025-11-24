@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1066602369268",
+    "project_id": "depressionchatbot-c4c18",
+    "storage_bucket": "depressionchatbot-c4c18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1066602369268:android:56f7383b6701bb9f2dcea1",
+        "android_client_info": {
+          "package_name": "com.haemilforcounseolrs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsEp1FEpWAT5fJ1bZiZENSPdBvVVPXDiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1066602369268:android:1bcc52e3fdeb01692dcea1",
+        "android_client_info": {
+          "package_name": "com.hanseol.depressionchatbot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsEp1FEpWAT5fJ1bZiZENSPdBvVVPXDiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

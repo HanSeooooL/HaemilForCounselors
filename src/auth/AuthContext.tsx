@@ -2,18 +2,19 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 // replace AsyncStorage with secure storage wrapper
 import { STORAGE as SecureStorage } from '../storage/secureStorage';
 import { login, register, type RegisterPayload } from '../api';
+import { initFcm, peekFcmToken } from '../firebaseMessaging';
 
 type AuthContextValue = {
     token: string | null;
     isLoading: boolean;
     justSignedUp: boolean;
+
     signIn: (id: string, password: string) => Promise<void>;
     signUp: (payload: RegisterPayload) => Promise<void>;
     signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const STORAGE_KEY = 'auth_token';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [token, setToken] = useState<string | null>(null);
@@ -23,7 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         (async () => {
             try {
-                // Load from secure storage (will migrate from legacy AsyncStorage if needed)
+                // FCM 초기화 (권한 요청 + 토큰 발급)
+                await initFcm();
+                // 저장된 토큰 로드
                 const saved = await SecureStorage.getToken();
                 if (saved) setToken(saved);
             } finally {
@@ -33,14 +36,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signIn = async (id: string, password: string) => {
-        const t = await login(id, password);
+        const fcmToken = peekFcmToken();
+        const t = await login(id, password, fcmToken || undefined);
         setToken(t);
         await SecureStorage.setToken(t);
         setJustSignedUp(false);
     };
 
     const signUp = async (payload: RegisterPayload) => {
-        const t = await register(payload);
+        const fcmToken = peekFcmToken();
+        const t = await register({ ...payload, fcmToken: fcmToken || undefined });
         setToken(t);
         await SecureStorage.setToken(t);
         setJustSignedUp(true);
