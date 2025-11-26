@@ -10,12 +10,15 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import AppStack from './src/navigation/AppStack';
 import type { AppStackParamList } from './src/navigation/AppStack';
 import RNBootSplash from 'react-native-bootsplash';
+import app from '@react-native-firebase/app'
+
+console.log('🔥 Firebase app name:', app.app().name); // 정상이면 "[DEFAULT]"
 
 const navRef = createNavigationContainerRef<AppStackParamList>();
 
 function Root() {
     const { token, isLoading, justSignedUp } = useAuth();
-    const isDarkMode = useColorScheme() === 'dark';
+    // const isDarkMode = useColorScheme() === 'dark'; // not used to avoid white icons on white bg
     const [initialScreenResolved, setInitialScreenResolved] = React.useState(false);
 
     React.useEffect(() => {
@@ -59,7 +62,8 @@ function Root() {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+            {/* Force dark (black) icons/text on white background across platforms */}
+            <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
             {token ? (
                 <NavigationContainer ref={navRef}>
                     <AppStack />

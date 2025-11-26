@@ -32,6 +32,16 @@
 		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>52.79.194.19</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
@@ -49,20 +59,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Let JS control status bar appearance -->
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<key>NSAppTransportSecurity</key>
-        <dict>
-          <key>NSExceptionDomains</key>
-          <dict>
-            <key>52.79.194.19</key>
-            <dict>
-              <key>NSExceptionAllowsInsecureHTTPLoads</key>
-              <true/>
-              <key>NSIncludesSubdomains</key>
-              <true/>
-            </dict>
-          </dict>
-        </dict>
+	<!-- Default preferred status bar style (iOS 13-) to dark content for light background -->
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDarkContent</string>
 </dict>
 </plist>

@@ -6,6 +6,8 @@ require Pod::Executable.execute_command('node', ['-p',
   )', __dir__]).strip
 
 platform :ios, min_ios_version_supported
+# ⚠️ 여기 절대 use_modular_headers! 넣지 말기
+
 prepare_react_native_project!
 
 linkage = ENV['USE_FRAMEWORKS']
@@ -23,14 +25,22 @@ target 'HaemilForCounseolrs' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
-  # (자동 링크로 lottie-react-native 및 lottie-ios 처리)
+  # ✅ 이 줄이 진짜 핵심 (반드시 target 블록 안, config 바로 밑)
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
 
   post_install do |installer|
     react_native_post_install(
       installer,
       config[:reactNativePath],
       :mac_catalyst_enabled => false,
-      # :ccache_enabled => true
     )
+
+    # ✅ non-modular include 허용 (React-Fabric 에러 방지)
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
   end
 end
