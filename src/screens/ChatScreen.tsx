@@ -176,7 +176,8 @@ function ChatScreenInner({ route, navigation }: Props) {
     const reconnectAttemptsRef = useRef(0);
     const manualCloseRef = useRef(false);
 
-    const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+    // const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+    const HOST = '52.79.194.19'
     const WS_BASE = `ws://${HOST}:8080/chat/ws`;
 
     function cleanupSocket() {
